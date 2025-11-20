@@ -6,7 +6,7 @@
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![GitHub release](https://img.shields.io/github/release/rocajuanma/simple-release.svg)](https://github.com/rocajuanma/simple-release/releases)
+[![GitHub release](https://img.shields.io/github/release/0xjuanma/simple-release.svg)](https://github.com/0xjuanma/simple-release/releases)
 
 Speed up your release process: create a tag to trigger a new GitHub release, automatically update your changelog with release details, and receive a pull request with the latest changelog changes.
 </div>
@@ -25,7 +25,7 @@ on:
 jobs:
   release:
     # Use @main for newest version, or pin to specific version like @v1.0.0
-    uses: rocajuanma/simple-release/.github/workflows/reusable-release.yml@main
+    uses: 0xjuanma/simple-release/.github/workflows/reusable-release.yml@main
     with:
       changelog-path: 'CHANGELOG.md'  # Optional: Changelog path
     secrets:
@@ -44,7 +44,7 @@ on:
 jobs:
   update-changelog:
     # Use @main for newest version, or pin to specific version like @v1.0.0
-    uses: rocajuanma/simple-release/.github/workflows/reusable-post-release-changelog.yml@main
+    uses: 0xjuanma/simple-release/.github/workflows/reusable-post-release-changelog.yml@main
     secrets:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Required: Creates PR and updates changelog
 ```
@@ -90,7 +90,7 @@ Create `CHANGELOG.md`:
 - **Best for most users** who want the latest functionality
 
 ```yaml
-uses: rocajuanma/simple-release/.github/workflows/reusable-release.yml@main
+uses: 0xjuanma/simple-release/.github/workflows/reusable-release.yml@main
 ```
 
 ### Pinning to Specific Versions
@@ -99,11 +99,11 @@ uses: rocajuanma/simple-release/.github/workflows/reusable-release.yml@main
 - **Update manually** when you want new features
 
 ```yaml
-uses: rocajuanma/simple-release/workflows/reusable-release.yml@v1.0.0
+uses: 0xjuanma/simple-release/workflows/reusable-release.yml@v1.0.0
 ```
 
 ### Available Versions
-Check [releases page](https://github.com/rocajuanma/simple-release/releases) for all available versions.
+Check [releases page](https://github.com/0xjuanma/simple-release/releases) for all available versions.
 
 ## Required Permissions
 

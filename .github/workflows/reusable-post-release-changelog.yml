@@ -74,7 +74,7 @@ jobs:
           # Extract version from GITHUB_REF (e.g., refs/tags/v1.0.0 -> v1.0.0)
           SIMPLE_RELEASE_VERSION=$(echo "${{ github.ref }}" | sed 's/refs\/tags\///')
           echo "Using simple-release version: $SIMPLE_RELEASE_VERSION (derived from workflow tag)"
-          curl -sSL https://raw.githubusercontent.com/rocajuanma/simple-release/$SIMPLE_RELEASE_VERSION/scripts/update-changelog.py -o "$TEMP_DIR/update-changelog.py"
+          curl -sSL https://raw.githubusercontent.com/0xjuanma/simple-release/$SIMPLE_RELEASE_VERSION/scripts/update-changelog.py -o "$TEMP_DIR/update-changelog.py"
           SCRIPT_PATH="$TEMP_DIR/update-changelog.py"
         fi
         
@@ -122,7 +122,7 @@ jobs:
           
           ---
           
-          This PR was automatically created by the post-release workflow from https://github.com/rocajuanma/simple-release.
+          This PR was automatically created by the post-release workflow from https://github.com/0xjuanma/simple-release.
         branch: changelog-update-${{ steps.release_info.outputs.VERSION }}
         delete-branch: true
         labels: |
