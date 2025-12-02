@@ -22,6 +22,8 @@ name: Release
 on:
   push:
     tags: ['v*.*.*']
+permissions:
+  contents: write
 jobs:
   release:
     # Use @main for newest version, or pin to specific version like @v1.0.0
@@ -41,6 +43,9 @@ name: Post-Release Changelog Update
 on:
   repository_dispatch:
     types: [release-published]
+permissions:
+  contents: write
+  pull-requests: write
 jobs:
   update-changelog:
     # Use @main for newest version, or pin to specific version like @v1.0.0
@@ -55,7 +60,11 @@ jobs:
 > 
 > You can pass your `GITHUB_TOKEN` to both, or create a Personal Access Token (PAT) with `repo` permissions and add it as a repository secret.
 
-### 3. Create Changelog
+### 3. Enable GitHub Actions to Create PRs
+
+Enable PRs creation, see [Troubleshooting Token Issues](#troubleshooting-token-issues) for detailed steps.
+
+### 4. Create Changelog
 
 Create `CHANGELOG.md`:
 
@@ -73,7 +82,7 @@ Create `CHANGELOG.md`:
 - Initial release
 ```
 
-> **Note**: As long as you keep your `CHANGELOG.md` up to date after each change, this workflow > will automatically move all items under "Unreleased" into a new release section whenever you > push a new tag.
+> **Note**: As long as you keep your `CHANGELOG.md` up to date after each change, this workflow will automatically move all items under "Unreleased" into a new release section whenever you push a new tag.
 
 ## Usage
 
@@ -117,6 +126,17 @@ Check [releases page](https://github.com/0xjuanma/simple-release/releases) for a
 
 ### Troubleshooting Token Issues
 If the post-release workflow fails to create PRs:
+
+#### Fix: Enable GitHub Actions to Create PRs
+1. Go to your repository on GitHub
+2. Click **Settings → Actions → General**
+3. Scroll down to **"Workflow permissions"**
+4. Select **"Read and write permissions"**
+5. ✅ Check **"Allow GitHub Actions to create and approve pull requests"**
+6. Click **Save**
+
+#### Alternative: Use Personal Access Token
+If the above doesn't work:
 1. **Create a PAT**: Go to GitHub Settings → Developer settings → Personal access tokens
 2. **Required scope**: Select `repo` (full repository access)
 3. **Add as secret**: Repository Settings → Secrets → Add `GITHUB_TOKEN` with your PAT
