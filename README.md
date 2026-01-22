@@ -60,11 +60,38 @@ jobs:
 > 
 > You can pass your `GITHUB_TOKEN` to both, or create a Personal Access Token (PAT) with `repo` permissions and add it as a repository secret.
 
-### 3. Enable GitHub Actions to Create PRs
+### 3. Add Tap Update Workflow (Optional)
+
+For projects with Homebrew taps, create `.github/workflows/update-tap.yml`:
+
+```yaml
+name: Update Homebrew Tap
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  update-tap:
+    # Use @main for newest version, or pin to specific version like @v1.0.0
+    uses: 0xjuanma/simple-release/.github/workflows/reusable-update-tap.yml@main
+    with:
+      tap-repo: 'yourusername/homebrew-tap'
+      project-name: 'your-project'
+      formula-path: 'your-project.rb'
+      github-repo: 'yourusername/your-project'
+    secrets:
+      token: ${{ secrets.TAP_TOKEN }}
+```
+
+### 4. Enable GitHub Actions to Create PRs
 
 Enable PRs creation, see [Troubleshooting Token Issues](#troubleshooting-token-issues) for detailed steps.
 
-### 4. Create Changelog
+### 5. Create Changelog
 
 Create `CHANGELOG.md`:
 
@@ -88,8 +115,9 @@ Create `CHANGELOG.md`:
 
 1. **Push a tag**: `git tag v1.0.0 && git push origin v1.0.0`
 2. **Release created** with changelog content (no files attached)
-3. **Changelog updated** automatically
-4. **PR created** with changelog changes
+3. **Formula updated** → Users can `brew upgrade` immediately (optional)
+4. **Changelog updated** automatically
+5. **PR created** with changelog changes
 
 ## Version Management
 

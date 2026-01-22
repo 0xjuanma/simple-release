@@ -1,0 +1,120 @@
+name: Reusable Update Tap
+
+on:
+  workflow_call:
+    inputs:
+      tap-repo:
+        description: 'Homebrew tap repository (e.g., user/homebrew-tap)'
+        required: true
+        type: string
+      project-name:
+        description: 'Project/formula name'
+        required: true
+        type: string
+      formula-path:
+        description: 'Path to formula file in tap repo'
+        required: true
+        type: string
+      github-repo:
+        description: 'Source GitHub repository (e.g., user/project)'
+        required: true
+        type: string
+      binary-suffix:
+        description: 'Binary file suffix (default: empty for no extension)'
+        required: false
+        type: string
+        default: ''
+    secrets:
+      token:
+        description: 'Personal Access Token with write access to the tap repository (cross-repository access)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  update-tap:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout tap repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.tap-repo }}
+          token: ${{ secrets.token }}
+          path: tap-repo
+
+      - name: Get release version
+        id: get_version
+        run: |
+          # Remove 'v' prefix from tag name (e.g., v1.2.3 -> 1.2.3)
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Update formula
+        run: |
+          cd tap-repo
+
+          # Download binaries and calculate SHA256 hashes
+          BASE_URL="https://github.com/${{ inputs.github-repo }}/releases/download/${{ steps.get_version.outputs.tag }}"
+
+          echo "Downloading binaries for ${{ inputs.project-name }} version ${{ steps.get_version.outputs.version }}..."
+
+          # Download platform binaries (adjust based on build matrix)
+          BINARY_SUFFIX="${{ inputs.binary-suffix }}"
+          PLATFORMS=("darwin-amd64" "darwin-arm64" "linux-amd64" "linux-arm64" "windows-amd64" "windows-arm64")
+
+          declare -A SHA_VARS
+          for platform in "${PLATFORMS[@]}"; do
+            binary_name="${{ inputs.project-name }}-${platform}${BINARY_SUFFIX}"
+            if curl -sL "$BASE_URL/$binary_name" -o "$binary_name" 2>/dev/null; then
+              sha_var="${platform//-/_}_SHA"
+              sha_var="${sha_var^^}"
+              SHA_VARS[$sha_var]=$(shasum -a 256 "$binary_name" | cut -d' ' -f1)
+              echo "$platform: ${SHA_VARS[$sha_var]}"
+              rm "$binary_name"
+            else
+              echo "No $platform binary found (skipping)"
+              rm -f "$binary_name"
+            fi
+          done
+
+          # Update the formula file
+          FORMULA_FILE="${{ inputs.formula-path }}"
+
+          if [ ! -f "$FORMULA_FILE" ]; then
+            echo "Error: Formula file $FORMULA_FILE not found"
+            exit 1
+          fi
+
+          echo "Updating formula with new version and hashes..."
+
+          # Update version
+          sed -i "s/version \".*\"/version \"${{ steps.get_version.outputs.version }}\"/" "$FORMULA_FILE"
+
+          # Update SHA256 hashes for each platform
+          for sha_var in "${!SHA_VARS[@]}"; do
+            placeholder="REPLACE_WITH_ACTUAL_SHA256_FOR_${sha_var%_SHA}"
+            sed -i "s/$placeholder/${SHA_VARS[$sha_var]}/" "$FORMULA_FILE"
+          done
+
+          echo "Formula updated successfully!"
+
+      - name: Commit and push changes
+        run: |
+          cd tap-repo
+
+          # Check if there are changes
+          if git diff --quiet; then
+            echo "No changes to commit - formula may already be up to date"
+            exit 0
+          fi
+
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          git add .
+          git commit -m "Update ${{ inputs.project-name }} to ${{ steps.get_version.outputs.tag }}"
+
+          git push
