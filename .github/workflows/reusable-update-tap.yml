@@ -117,7 +117,7 @@ jobs:
               if grep -q "${{ inputs.project-name }}-${platform}" "$FORMULA_FILE"; then
                 sed -i "/${{ inputs.project-name }}-${platform}/,/sha256/{s/sha256 \"[a-f0-9]\{64\}\"/sha256 \"${SHA_VARS[$sha_var]}\"/}" "$FORMULA_FILE"
                 echo "Updated SHA256 for $platform"
-                ((UPDATED_COUNT++))
+                UPDATED_COUNT=$((UPDATED_COUNT + 1))
               else
                 echo "Platform $platform not found in formula (skipping)"
               fi
