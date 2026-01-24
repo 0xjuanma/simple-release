@@ -24,6 +24,11 @@ on:
         required: false
         type: string
         default: ''
+      version:
+        description: 'Release version tag (e.g., v1.2.3). If not provided, uses GITHUB_REF_NAME'
+        required: false
+        type: string
+        default: ''
     secrets:
       token:
         description: 'Personal Access Token with write access to the tap repository (cross-repository access)'
@@ -47,16 +52,22 @@ jobs:
       - name: Get release version
         id: get_version
         run: |
+          # Use version input if provided, otherwise fall back to GITHUB_REF_NAME
+          VERSION_TAG="${{ inputs.version }}"
+          if [ -z "$VERSION_TAG" ]; then
+            VERSION_TAG="$GITHUB_REF_NAME"
+          fi
+
           # Validate tag format
-          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
-            echo "Error: Expected a version tag (e.g., v1.2.3), got: $GITHUB_REF_NAME"
+          if [[ ! "$VERSION_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "Error: Expected a version tag (e.g., v1.2.3), got: $VERSION_TAG"
             exit 1
           fi
 
           # Remove 'v' prefix from tag name (e.g., v1.2.3 -> 1.2.3)
-          VERSION=${GITHUB_REF_NAME#v}
+          VERSION=${VERSION_TAG#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+          echo "tag=${VERSION_TAG}" >> $GITHUB_OUTPUT
 
       - name: Update formula
         run: |

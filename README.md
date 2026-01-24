@@ -80,9 +80,12 @@ jobs:
       project-name: 'your-project'
       formula-path: 'your-project.rb'
       github-repo: 'yourusername/your-project'
+      version: ${{ github.event.client_payload.version }}  # Required when triggered via repository_dispatch
     secrets:
       token: ${{ secrets.TAP_TOKEN }}
 ```
+
+> **Note**: The `version` input is required when the workflow is triggered via `repository_dispatch` because `GITHUB_REF_NAME` will be `main` instead of the tag. The version is passed from the release workflow's `client-payload`.
 
 ### 4. Enable GitHub Actions to Create PRs
 
