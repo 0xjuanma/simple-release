@@ -47,6 +47,12 @@ jobs:
       - name: Get release version
         id: get_version
         run: |
+          # Validate tag format
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "Error: Expected a version tag (e.g., v1.2.3), got: $GITHUB_REF_NAME"
+            exit 1
+          fi
+
           # Remove 'v' prefix from tag name (e.g., v1.2.3 -> 1.2.3)
           VERSION=${GITHUB_REF_NAME#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -68,7 +74,7 @@ jobs:
           declare -A SHA_VARS
           for platform in "${PLATFORMS[@]}"; do
             binary_name="${{ inputs.project-name }}-${platform}${BINARY_SUFFIX}"
-            if curl -sL "$BASE_URL/$binary_name" -o "$binary_name" 2>/dev/null; then
+            if curl -sfL "$BASE_URL/$binary_name" -o "$binary_name" 2>/dev/null; then
               sha_var="${platform//-/_}_SHA"
               sha_var="${sha_var^^}"
               SHA_VARS[$sha_var]=$(shasum -a 256 "$binary_name" | cut -d' ' -f1)
@@ -79,6 +85,12 @@ jobs:
               rm -f "$binary_name"
             fi
           done
+
+          # Validate at least one binary was downloaded
+          if [ ${#SHA_VARS[@]} -eq 0 ]; then
+            echo "Error: No binaries were downloaded. Release assets may not be uploaded yet."
+            exit 1
+          fi
 
           # Update the formula file
           FORMULA_FILE="${{ inputs.formula-path }}"
@@ -93,13 +105,26 @@ jobs:
           # Update version
           sed -i "s/version \".*\"/version \"${{ steps.get_version.outputs.version }}\"/" "$FORMULA_FILE"
 
-          # Update SHA256 hashes for each platform
-          for sha_var in "${!SHA_VARS[@]}"; do
-            placeholder="REPLACE_WITH_ACTUAL_SHA256_FOR_${sha_var%_SHA}"
-            sed -i "s/$placeholder/${SHA_VARS[$sha_var]}/" "$FORMULA_FILE"
+          # Update SHA256 hashes for each platform by matching the URL context
+          # This finds the URL line for each platform and updates the sha256 on the next line
+          UPDATED_COUNT=0
+          for platform in "${PLATFORMS[@]}"; do
+            sha_var="${platform//-/_}_SHA"
+            sha_var="${sha_var^^}"
+            
+            if [ -n "${SHA_VARS[$sha_var]}" ]; then
+              # Match the URL containing the platform and update the sha256 on the following line
+              if grep -q "${{ inputs.project-name }}-${platform}" "$FORMULA_FILE"; then
+                sed -i "/${{ inputs.project-name }}-${platform}/,/sha256/{s/sha256 \"[a-f0-9]\{64\}\"/sha256 \"${SHA_VARS[$sha_var]}\"/}" "$FORMULA_FILE"
+                echo "Updated SHA256 for $platform"
+                ((UPDATED_COUNT++))
+              else
+                echo "Platform $platform not found in formula (skipping)"
+              fi
+            fi
           done
 
-          echo "Formula updated successfully!"
+          echo "Formula updated: version ${{ steps.get_version.outputs.version }} with $UPDATED_COUNT SHA256 hash(es)"
 
       - name: Commit and push changes
         run: |
@@ -111,8 +136,12 @@ jobs:
             exit 0
           fi
 
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          # Show changes to be committed
+          echo "Changes to be committed:"
+          git diff
+
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
 
           git add .
           git commit -m "Update ${{ inputs.project-name }} to ${{ steps.get_version.outputs.tag }}"
