@@ -66,14 +66,11 @@ For projects with Homebrew taps, create `.github/workflows/update-tap.yml`:
 
 ```yaml
 name: Update Homebrew Tap
-
 on:
-  release:
-    types: [published]
-
+  repository_dispatch:
+    types: [release-published]
 permissions:
   contents: read
-
 jobs:
   update-tap:
     # Use @main for newest version, or pin to specific version like @v1.0.0
