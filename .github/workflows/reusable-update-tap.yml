@@ -96,26 +96,44 @@ jobs:
           BINARY_SUFFIX="${{ inputs.binary-suffix }}"
           PLATFORMS=("darwin-amd64" "darwin-arm64" "linux-amd64" "linux-arm64" "windows-amd64" "windows-arm64")
 
-          declare -A SHA_VARS
-          for platform in "${PLATFORMS[@]}"; do
-            binary_name="${{ inputs.project-name }}-${platform}${BINARY_SUFFIX}"
-            if curl -sfL "$BASE_URL/$binary_name" -o "$binary_name" 2>/dev/null; then
-              sha_var="${platform//-/_}_SHA"
-              sha_var="${sha_var^^}"
-              SHA_VARS[$sha_var]=$(shasum -a 256 "$binary_name" | cut -d' ' -f1)
-              echo "$platform: ${SHA_VARS[$sha_var]}"
-              rm "$binary_name"
+          # Retry logic: wait for binaries to be available (handles race condition with build workflow)
+          MAX_RETRIES=10
+          RETRY_DELAY=30  # seconds between retries
+          
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $attempt of $MAX_RETRIES: Checking for release binaries..."
+            
+            declare -A SHA_VARS
+            for platform in "${PLATFORMS[@]}"; do
+              binary_name="${{ inputs.project-name }}-${platform}${BINARY_SUFFIX}"
+              if curl -sfL "$BASE_URL/$binary_name" -o "$binary_name" 2>/dev/null; then
+                sha_var="${platform//-/_}_SHA"
+                sha_var="${sha_var^^}"
+                SHA_VARS[$sha_var]=$(shasum -a 256 "$binary_name" | cut -d' ' -f1)
+                echo "$platform: ${SHA_VARS[$sha_var]}"
+                rm "$binary_name"
+              else
+                rm -f "$binary_name"
+              fi
+            done
+            
+            # If we found at least one binary, break out of retry loop
+            if [ ${#SHA_VARS[@]} -gt 0 ]; then
+              echo "Found ${#SHA_VARS[@]} binary/binaries, proceeding with update..."
+              break
+            fi
+            
+            # No binaries found yet
+            if [ $attempt -lt $MAX_RETRIES ]; then
+              echo "No binaries found yet. Waiting ${RETRY_DELAY}s before retry..."
+              sleep $RETRY_DELAY
+              unset SHA_VARS
             else
-              echo "No $platform binary found (skipping)"
-              rm -f "$binary_name"
+              echo "Error: No binaries were downloaded after $MAX_RETRIES attempts."
+              echo "Release assets may not have been uploaded. Check your build workflow."
+              exit 1
             fi
           done
-
-          # Validate at least one binary was downloaded
-          if [ ${#SHA_VARS[@]} -eq 0 ]; then
-            echo "Error: No binaries were downloaded. Release assets may not be uploaded yet."
-            exit 1
-          fi
 
           # Update the formula file
           FORMULA_FILE="${{ inputs.formula-path }}"
