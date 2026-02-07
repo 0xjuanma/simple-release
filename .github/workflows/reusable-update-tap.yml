@@ -187,6 +187,8 @@ jobs:
           git config --local user.name "github-actions[bot]"
 
           git add .
-          git commit -m "Update ${{ inputs.project-name }} to ${{ steps.get_version.outputs.tag }}"
+          git commit -m "chore[${{ inputs.project-name }}]: update tap for ${{ steps.get_version.outputs.tag }}" \
+                      -m "---" \
+                      -m "Generated using https://github.com/0xjuanma/simple-release"
 
           git push
